@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyTicketCreated } from "@/lib/email";
+import { calculateDueDate } from "@/lib/sla";
 
 // GET /api/tickets - list tickets (scoped by role)
 export async function GET(req: Request) {
@@ -48,12 +49,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
   }
 
+  const finalPriority = priority || "MEDIUM";
+
   const ticket = await prisma.ticket.create({
     data: {
       title,
       description,
       category: category || "OTHER",
-      priority: priority || "MEDIUM",
+      priority: finalPriority,
+      dueAt: calculateDueDate(finalPriority),
       submitterId: userId,
       attachments: attachmentUrls?.length
         ? {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyStatusChanged } from "@/lib/email";
+import { calculateDueDate } from "@/lib/sla";
 
 // GET /api/tickets/:id
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -30,6 +31,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Submitters never see internal (technician-only) notes.
+  if (role === "SUBMITTER") {
+    ticket.comments = ticket.comments.filter((c) => !c.isInternal);
+  }
+
   return NextResponse.json(ticket);
 }
 
@@ -51,7 +57,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     data.status = status;
     if (status === "RESOLVED") data.resolvedAt = new Date();
   }
-  if (priority) data.priority = priority;
+  if (priority) {
+    data.priority = priority;
+    data.dueAt = calculateDueDate(priority, new Date());
+  }
   if (assigneeId !== undefined) data.assigneeId = assigneeId;
 
   const ticket = await prisma.ticket.update({

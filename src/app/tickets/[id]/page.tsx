@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 type Comment = {
   id: string;
   body: string;
+  isInternal: boolean;
   createdAt: string;
   author: { name: string | null; email: string; role: string };
 };
@@ -22,6 +23,7 @@ type TicketDetail = {
   priority: string;
   category: string;
   createdAt: string;
+  dueAt: string | null;
   submitter: { name: string | null; email: string };
   assignee: { name: string | null; email: string } | null;
   attachments: { id: string; url: string; name: string }[];
@@ -30,17 +32,33 @@ type TicketDetail = {
 
 const STATUS_FLOW = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 
+function isOverdue(dueAt: string | null, status: string) {
+  if (!dueAt) return false;
+  if (status === "RESOLVED" || status === "CLOSED") return false;
+  return new Date(dueAt).getTime() < Date.now();
+}
+
+function formatDue(dueAt: string) {
+  const diffMs = new Date(dueAt).getTime() - Date.now();
+  const hours = Math.abs(diffMs) / 36e5;
+  const label = hours < 24 ? `${Math.round(hours)}h` : `${Math.round(hours / 24)}d`;
+  return diffMs < 0 ? `${label} overdue` : `due in ${label}`;
+}
+
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: session } = useSession();
   const { showToast } = useToast();
   const role = (session?.user as any)?.role;
+  const myId = (session?.user as any)?.id;
   const canManage = role === "TECHNICIAN" || role === "ADMIN";
 
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [newComment, setNewComment] = useState("");
+  const [isInternal, setIsInternal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   async function loadTicket() {
     const res = await fetch(`/api/tickets/${id}`);
@@ -63,6 +81,18 @@ export default function TicketDetailPage() {
     loadTicket();
   }
 
+  async function claimTicket() {
+    setClaiming(true);
+    await fetch(`/api/tickets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigneeId: myId }),
+    });
+    showToast("Ticket claimed");
+    setClaiming(false);
+    loadTicket();
+  }
+
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -70,11 +100,12 @@ export default function TicketDetailPage() {
     await fetch(`/api/tickets/${id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: newComment }),
+      body: JSON.stringify({ body: newComment, isInternal }),
     });
     setNewComment("");
+    setIsInternal(false);
     setPosting(false);
-    showToast("Comment posted");
+    showToast(isInternal ? "Internal note added" : "Comment posted");
     loadTicket();
   }
 
@@ -93,6 +124,8 @@ export default function TicketDetailPage() {
     );
   }
 
+  const overdue = isOverdue(ticket.dueAt, ticket.status);
+
   return (
     <PageContainer>
       <div className="overflow-hidden rounded-xl border border-navy-100 bg-white">
@@ -100,7 +133,17 @@ export default function TicketDetailPage() {
           <span className="font-mono text-xs text-navy-400">
             #{ticket.id.slice(-6).toUpperCase()}
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {ticket.dueAt && (
+              <span
+                className={`font-mono text-[11px] font-medium uppercase tracking-wide ${
+                  overdue ? "text-urgent" : "text-navy-400"
+                }`}
+              >
+                {overdue && "⚠ "}
+                {formatDue(ticket.dueAt)}
+              </span>
+            )}
             <PriorityBadge priority={ticket.priority} />
             <StatusBadge status={ticket.status} />
           </div>
@@ -111,7 +154,11 @@ export default function TicketDetailPage() {
           <p className="mt-1 text-sm text-navy-400">
             {ticket.category.replace("_", " ")} · filed by{" "}
             {ticket.submitter.name || ticket.submitter.email}
-            {ticket.assignee && ` · assigned to ${ticket.assignee.name || ticket.assignee.email}`}
+            {ticket.assignee
+              ? ` · assigned to ${ticket.assignee.name || ticket.assignee.email}`
+              : canManage
+              ? " · unassigned"
+              : ""}
           </p>
 
           <p className="mt-5 whitespace-pre-wrap rounded-lg bg-paper p-4 text-sm leading-relaxed text-ink">
@@ -135,25 +182,37 @@ export default function TicketDetailPage() {
         </div>
 
         {canManage && (
-          <div className="border-t border-navy-100 bg-paper px-6 py-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-navy-400">
-              Update status
-            </p>
-            <div className="flex gap-2">
-              {STATUS_FLOW.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => updateStatus(s)}
-                  className={`rounded-lg px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wide transition ${
-                    ticket.status === s
-                      ? "bg-navy text-white"
-                      : "bg-white text-navy-400 hover:bg-navy-50"
-                  }`}
-                >
-                  {s.replace("_", " ")}
-                </button>
-              ))}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-navy-100 bg-paper px-6 py-4">
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-navy-400">
+                Update status
+              </p>
+              <div className="flex gap-2">
+                {STATUS_FLOW.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => updateStatus(s)}
+                    className={`rounded-lg px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wide transition ${
+                      ticket.status === s
+                        ? "bg-navy text-white"
+                        : "bg-white text-navy-400 hover:bg-navy-50"
+                    }`}
+                  >
+                    {s.replace("_", " ")}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {!ticket.assignee && (
+              <button
+                onClick={claimTicket}
+                disabled={claiming}
+                className="rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-navy-700 disabled:opacity-50"
+              >
+                {claiming ? "Claiming..." : "Claim this ticket"}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -167,7 +226,17 @@ export default function TicketDetailPage() {
 
         <div className="flex flex-col gap-3">
           {ticket.comments.map((c) => (
-            <div key={c.id} className="rounded-lg border border-navy-100 bg-white p-4">
+            <div
+              key={c.id}
+              className={`rounded-lg border p-4 ${
+                c.isInternal ? "border-brass-100 bg-brass-50" : "border-navy-100 bg-white"
+              }`}
+            >
+              {c.isInternal && (
+                <p className="mb-1.5 font-mono text-[10px] font-medium uppercase tracking-wider text-brass-600">
+                  Internal note · not visible to submitter
+                </p>
+              )}
               <p className="text-sm leading-relaxed text-ink">{c.body}</p>
               <p className="mt-2 text-xs text-navy-400">
                 {c.author.name || c.author.email} ·{" "}
@@ -177,20 +246,33 @@ export default function TicketDetailPage() {
           ))}
         </div>
 
-        <form onSubmit={submitComment} className="mt-4 flex gap-2">
-          <input
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Add a comment..."
-            className="input"
-          />
-          <button
-            type="submit"
-            disabled={posting}
-            className="flex-shrink-0 rounded-lg bg-navy px-4 py-2.5 text-sm font-medium text-white hover:bg-navy-700 disabled:opacity-50"
-          >
-            Post
-          </button>
+        <form onSubmit={submitComment} className="mt-4 flex flex-col gap-2">
+          <div className="flex gap-2">
+            <input
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder={isInternal ? "Add an internal note..." : "Add a comment..."}
+              className="input"
+            />
+            <button
+              type="submit"
+              disabled={posting}
+              className="flex-shrink-0 rounded-lg bg-navy px-4 py-2.5 text-sm font-medium text-white hover:bg-navy-700 disabled:opacity-50"
+            >
+              Post
+            </button>
+          </div>
+          {canManage && (
+            <label className="flex w-fit items-center gap-2 text-xs text-navy-400">
+              <input
+                type="checkbox"
+                checked={isInternal}
+                onChange={(e) => setIsInternal(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-navy-100"
+              />
+              Mark as internal note (technicians only)
+            </label>
+          )}
         </form>
       </div>
     </PageContainer>

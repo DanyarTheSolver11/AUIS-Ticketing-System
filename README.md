@@ -132,8 +132,13 @@ list cards. Tokens live in `tailwind.config.ts`:
 - [x] Toast confirmations for actions (status update, comment posted)
 - [x] Empty states and loading skeletons throughout
 
+**Phase 2 (workflow depth)**
+- [x] SLA due dates — auto-calculated from priority on creation (Urgent: 4h, High: 24h, Medium: 3d, Low: 7d), recalculated if priority changes
+- [x] Overdue flagging — shown on both the ticket list and ticket detail page
+- [x] Internal notes — technicians/admins can post notes marked "not visible to submitter," kept separate from public comments
+- [x] One-click "Claim ticket" button for technicians/admins on unassigned tickets
+- [x] CSV export from the dashboard — all tickets with status, priority, assignee, timestamps
+
 ## Ideas for later phases
-**Phase 2**: internal (technician-only) notes vs public comments, SLA/due dates
-with overdue flags, CSV/reporting export, ticket claim/auto-assignment
 **Phase 3**: rate limiting, error monitoring (Sentry), audit trail, staging
-environment separate from production database
+environment separate from production database, configurable SLA windows (currently hardcoded in `src/lib/sla.ts`)

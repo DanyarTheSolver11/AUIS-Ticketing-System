@@ -12,12 +12,19 @@ type Ticket = {
   priority: string;
   category: string;
   createdAt: string;
+  dueAt: string | null;
   submitter: { name: string | null; email: string };
   assignee: { name: string | null; email: string } | null;
   _count: { comments: number };
 };
 
 const STATUS_FILTERS = ["ALL", "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
+
+function isOverdue(dueAt: string | null, status: string) {
+  if (!dueAt) return false;
+  if (status === "RESOLVED" || status === "CLOSED") return false;
+  return new Date(dueAt).getTime() < Date.now();
+}
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -112,6 +119,11 @@ export default function TicketsPage() {
                 {t.assignee && ` · assigned to ${t.assignee.name || t.assignee.email}`}
               </p>
             </div>
+            {isOverdue(t.dueAt, t.status) && (
+              <span className="font-mono text-[11px] font-medium uppercase tracking-wide text-urgent">
+                Overdue
+              </span>
+            )}
             <StatusBadge status={t.status} />
           </Link>
         ))}

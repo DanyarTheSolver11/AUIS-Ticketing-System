@@ -9,6 +9,7 @@ type Stats = {
   inProgress: number;
   resolved: number;
   closed: number;
+  overdue: number;
   avgResolutionHours: number | null;
 };
 
@@ -23,8 +24,18 @@ export default function DashboardPage() {
 
   return (
     <PageContainer>
-      <p className="font-mono text-xs uppercase tracking-wider text-navy-400">Overview</p>
-      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Dashboard</h1>
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wider text-navy-400">Overview</p>
+          <h1 className="font-display text-2xl font-semibold text-navy">Dashboard</h1>
+        </div>
+        <a
+          href="/api/dashboard/export"
+          className="rounded-lg border border-navy-100 bg-white px-4 py-2 text-sm font-medium text-navy-600 transition hover:border-navy-400"
+        >
+          Export CSV
+        </a>
+      </div>
 
       {!stats ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -38,6 +49,7 @@ export default function DashboardPage() {
           <StatCard label="Open" value={stats.open} accent="brass" />
           <StatCard label="In progress" value={stats.inProgress} accent="navy" />
           <StatCard label="Resolved" value={stats.resolved} accent="resolved" />
+          <StatCard label="Overdue" value={stats.overdue} accent={stats.overdue > 0 ? "urgent" : undefined} />
           <StatCard label="Closed" value={stats.closed} />
           <StatCard
             label="Avg. resolution"
@@ -56,7 +68,7 @@ function StatCard({
 }: {
   label: string;
   value: string | number;
-  accent?: "brass" | "navy" | "resolved";
+  accent?: "brass" | "navy" | "resolved" | "urgent";
 }) {
   const dot =
     accent === "brass"
@@ -65,6 +77,8 @@ function StatCard({
       ? "bg-navy-400"
       : accent === "resolved"
       ? "bg-resolved"
+      : accent === "urgent"
+      ? "bg-urgent"
       : "bg-navy-100";
 
   return (

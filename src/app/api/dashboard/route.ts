@@ -10,12 +10,18 @@ export async function GET() {
   const role = (session.user as any).role;
   if (role === "SUBMITTER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const [total, open, inProgress, resolved, closed, byTech] = await Promise.all([
+  const [total, open, inProgress, resolved, closed, overdue, byTech] = await Promise.all([
     prisma.ticket.count(),
     prisma.ticket.count({ where: { status: "OPEN" } }),
     prisma.ticket.count({ where: { status: "IN_PROGRESS" } }),
     prisma.ticket.count({ where: { status: "RESOLVED" } }),
     prisma.ticket.count({ where: { status: "CLOSED" } }),
+    prisma.ticket.count({
+      where: {
+        dueAt: { lt: new Date() },
+        status: { notIn: ["RESOLVED", "CLOSED"] },
+      },
+    }),
     prisma.ticket.groupBy({
       by: ["assigneeId"],
       _count: { _all: true },
@@ -42,6 +48,7 @@ export async function GET() {
     inProgress,
     resolved,
     closed,
+    overdue,
     avgResolutionHours,
     byTechnician: byTech,
   });
