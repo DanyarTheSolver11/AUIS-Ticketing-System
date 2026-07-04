@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PageContainer from "@/components/PageContainer";
 
 type Stats = {
   total: number;
@@ -20,31 +21,59 @@ export default function DashboardPage() {
       .then(setStats);
   }, []);
 
-  if (!stats) return <p className="text-slate-500">Loading...</p>;
+  return (
+    <PageContainer>
+      <p className="font-mono text-xs uppercase tracking-wider text-navy-400">Overview</p>
+      <h1 className="mb-8 font-display text-2xl font-semibold text-navy">Dashboard</h1>
 
-  const cards = [
-    { label: "Total Tickets", value: stats.total },
-    { label: "Open", value: stats.open },
-    { label: "In Progress", value: stats.inProgress },
-    { label: "Resolved", value: stats.resolved },
-    { label: "Closed", value: stats.closed },
-    {
-      label: "Avg. Resolution Time",
-      value: stats.avgResolutionHours ? `${stats.avgResolutionHours.toFixed(1)}h` : "—",
-    },
-  ];
+      {!stats ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-xl border border-navy-100 bg-white" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <StatCard label="Total tickets" value={stats.total} />
+          <StatCard label="Open" value={stats.open} accent="brass" />
+          <StatCard label="In progress" value={stats.inProgress} accent="navy" />
+          <StatCard label="Resolved" value={stats.resolved} accent="resolved" />
+          <StatCard label="Closed" value={stats.closed} />
+          <StatCard
+            label="Avg. resolution"
+            value={stats.avgResolutionHours ? `${stats.avgResolutionHours.toFixed(1)}h` : "—"}
+          />
+        </div>
+      )}
+    </PageContainer>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent?: "brass" | "navy" | "resolved";
+}) {
+  const dot =
+    accent === "brass"
+      ? "bg-brass"
+      : accent === "navy"
+      ? "bg-navy-400"
+      : accent === "resolved"
+      ? "bg-resolved"
+      : "bg-navy-100";
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-sm text-slate-500">{c.label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{c.value}</p>
-          </div>
-        ))}
+    <div className="rounded-xl border border-navy-100 bg-white p-5">
+      <div className="mb-2 flex items-center gap-1.5">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <p className="text-xs font-medium text-navy-400">{label}</p>
       </div>
+      <p className="font-display text-2xl font-semibold text-navy">{value}</p>
     </div>
   );
 }

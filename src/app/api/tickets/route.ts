@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyTicketCreated } from "@/lib/email";
 
 // GET /api/tickets - list tickets (scoped by role)
 export async function GET(req: Request) {
@@ -66,6 +67,8 @@ export async function POST(req: Request) {
     },
     include: { attachments: true },
   });
+
+  await notifyTicketCreated(session.user.email!, ticket.title, ticket.id);
 
   return NextResponse.json(ticket, { status: 201 });
 }

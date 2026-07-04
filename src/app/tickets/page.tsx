@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { StatusBadge, PriorityBadge, PriorityStub } from "@/components/StatusBadge";
+import PageContainer from "@/components/PageContainer";
 
 type Ticket = {
   id: string;
@@ -16,9 +17,13 @@ type Ticket = {
   _count: { comments: number };
 };
 
+const STATUS_FILTERS = ["ALL", "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
+
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   useEffect(() => {
     fetch("/api/tickets")
@@ -27,46 +32,135 @@ export default function TicketsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const filtered = useMemo(() => {
+    return tickets.filter((t) => {
+      const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
+      const matchesQuery =
+        !query.trim() ||
+        t.title.toLowerCase().includes(query.toLowerCase()) ||
+        t.category.toLowerCase().includes(query.toLowerCase());
+      return matchesStatus && matchesQuery;
+    });
+  }, [tickets, query, statusFilter]);
+
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Tickets</h1>
+    <PageContainer>
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wider text-navy-400">Queue</p>
+          <h1 className="font-display text-2xl font-semibold text-navy">Tickets</h1>
+        </div>
         <Link
           href="/tickets/new"
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="rounded-lg bg-navy px-4 py-2.5 text-sm font-medium text-white transition hover:bg-navy-700"
         >
           + New Ticket
         </Link>
       </div>
 
-      {loading && <p className="text-slate-500">Loading...</p>}
-      {!loading && tickets.length === 0 && (
-        <p className="text-slate-500">No tickets yet. Create your first one.</p>
-      )}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by title or category..."
+            className="w-full rounded-lg border border-navy-100 bg-white py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-navy-400"
+          />
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto">
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`whitespace-nowrap rounded-lg px-3 py-1.5 font-mono text-xs font-medium uppercase tracking-wide transition ${
+                statusFilter === s
+                  ? "bg-navy text-white"
+                  : "bg-white text-navy-400 hover:bg-navy-50"
+              }`}
+            >
+              {s.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="flex flex-col gap-3">
-        {tickets.map((t) => (
+      {loading && <SkeletonList />}
+
+      {!loading && filtered.length === 0 && <EmptyState hasTickets={tickets.length > 0} />}
+
+      <div className="flex flex-col gap-2.5">
+        {filtered.map((t) => (
           <Link
             key={t.id}
             href={`/tickets/${t.id}`}
-            className="rounded-lg border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:shadow-sm"
+            className="group relative flex items-center gap-4 overflow-hidden rounded-xl border border-navy-100 bg-white py-4 pl-5 pr-4 transition hover:border-navy-400 hover:shadow-sm"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-medium text-slate-900">{t.title}</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  {t.category.replace("_", " ")} · Submitted by {t.submitter.name || t.submitter.email}
-                  {t.assignee && ` · Assigned to ${t.assignee.name || t.assignee.email}`}
-                </p>
-              </div>
-              <div className="flex flex-shrink-0 gap-2">
+            <PriorityStub priority={t.priority} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] text-navy-400">
+                  #{t.id.slice(-6).toUpperCase()}
+                </span>
                 <PriorityBadge priority={t.priority} />
-                <StatusBadge status={t.status} />
               </div>
+              <h2 className="mt-1 truncate font-medium text-ink group-hover:text-navy">
+                {t.title}
+              </h2>
+              <p className="mt-0.5 truncate text-sm text-navy-400">
+                {t.category.replace("_", " ")} · {t.submitter.name || t.submitter.email}
+                {t.assignee && ` · assigned to ${t.assignee.name || t.assignee.email}`}
+              </p>
             </div>
+            <StatusBadge status={t.status} />
           </Link>
         ))}
       </div>
+    </PageContainer>
+  );
+}
+
+function EmptyState({ hasTickets }: { hasTickets: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-navy-100 bg-white py-16 text-center">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-navy-50">
+        <SearchIcon className="h-5 w-5 text-navy-400" />
+      </div>
+      <p className="font-medium text-ink">
+        {hasTickets ? "No tickets match your filters" : "No tickets yet"}
+      </p>
+      <p className="mt-1 text-sm text-navy-400">
+        {hasTickets
+          ? "Try a different search term or clear the status filter."
+          : "Submit your first request and it'll show up here."}
+      </p>
+      {!hasTickets && (
+        <Link
+          href="/tickets/new"
+          className="mt-4 rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-700"
+        >
+          Submit a ticket
+        </Link>
+      )}
     </div>
+  );
+}
+
+function SkeletonList() {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-[72px] animate-pulse rounded-xl border border-navy-100 bg-white" />
+      ))}
+    </div>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }

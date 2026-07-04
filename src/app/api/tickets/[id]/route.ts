@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyStatusChanged } from "@/lib/email";
 
 // GET /api/tickets/:id
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -56,7 +57,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const ticket = await prisma.ticket.update({
     where: { id: params.id },
     data,
+    include: { submitter: { select: { email: true } } },
   });
+
+  if (status) {
+    await notifyStatusChanged(ticket.submitter.email, ticket.title, ticket.id, status);
+  }
 
   return NextResponse.json(ticket);
 }
