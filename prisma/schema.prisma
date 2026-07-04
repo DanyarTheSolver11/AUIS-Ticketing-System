@@ -46,6 +46,7 @@ model User {
   ticketsFiled     Ticket[]  @relation("SubmittedTickets")
   ticketsAssigned  Ticket[]  @relation("AssignedTickets")
   comments         Comment[]
+  auditLogs        AuditLog[]
 
   accounts Account[]
   sessions Session[]
@@ -93,6 +94,37 @@ model Comment {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g. "STATUS_CHANGED", "ASSIGNED", "ROLE_CHANGED", "PRIORITY_CHANGED"
+  detail    String   // human-readable summary, e.g. "OPEN -> IN_PROGRESS"
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  ticketId  String?
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([createdAt])
+}
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  route     String
+  message   String
+  stack     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Settings {
+  id            Int    @id @default(1)
+  slaUrgentHours Int   @default(4)
+  slaHighHours   Int   @default(24)
+  slaMediumHours Int   @default(72)
+  slaLowHours    Int   @default(168)
 }
 
 // --- NextAuth required models ---

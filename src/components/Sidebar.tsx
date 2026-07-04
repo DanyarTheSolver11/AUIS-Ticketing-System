@@ -10,9 +10,12 @@ const NAV_ITEMS = [
   { href: "/tickets/new", label: "New Ticket", icon: PlusIcon },
 ];
 
-const MANAGE_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: ChartIcon },
+const MANAGE_ITEMS = [{ href: "/dashboard", label: "Dashboard", icon: ChartIcon }];
+
+const ADMIN_ITEMS = [
   { href: "/admin/users", label: "People", icon: PeopleIcon },
+  { href: "/admin/audit", label: "Activity Log", icon: LogIcon },
+  { href: "/admin/settings", label: "Settings", icon: GearIcon },
 ];
 
 export default function Sidebar() {
@@ -23,6 +26,7 @@ export default function Sidebar() {
 
   const role = (session.user as any)?.role;
   const canManage = role === "TECHNICIAN" || role === "ADMIN";
+  const isAdmin = role === "ADMIN";
   const initials = (session.user?.name || session.user?.email || "?")
     .split(" ")
     .map((p) => p[0])
@@ -59,6 +63,10 @@ export default function Sidebar() {
               {MANAGE_ITEMS.map((item) => (
                 <NavLink key={item.href} {...item} active={pathname === item.href} />
               ))}
+              {isAdmin &&
+                ADMIN_ITEMS.map((item) => (
+                  <NavLink key={item.href} {...item} active={pathname === item.href} />
+                ))}
             </div>
           </div>
         )}
@@ -153,6 +161,33 @@ function PeopleIcon({ className }: { className?: string }) {
       <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.6" />
       <path
         d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 8a3 3 0 1 1 0 6M22 20c0-2.8-2-5-4.5-5.7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LogIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M4 6h16M4 12h16M4 18h10"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function GearIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit";
+import { withErrorLogging } from "@/lib/errorLog";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -12,7 +14,7 @@ async function requireAdmin() {
 }
 
 // GET /api/admin/users - list all users (admin only)
-export async function GET() {
+export const GET = withErrorLogging("GET /api/admin/users", async () => {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -29,10 +31,10 @@ export async function GET() {
   });
 
   return NextResponse.json(users);
-}
+});
 
 // PATCH /api/admin/users - update a user's role (admin only)
-export async function PATCH(req: Request) {
+export const PATCH = withErrorLogging("PATCH /api/admin/users", async (req: Request) => {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -49,10 +51,20 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const before = await prisma.user.findUnique({ where: { id: userId } });
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: { role },
   });
 
+  if (before && before.role !== role) {
+    await logAudit({
+      action: "ROLE_CHANGED",
+      detail: `${user.email}: ${before.role} → ${role}`,
+      actorId: currentUserId,
+    });
+  }
+
   return NextResponse.json(user);
-}
+});

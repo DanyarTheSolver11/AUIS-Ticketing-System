@@ -139,6 +139,37 @@ list cards. Tokens live in `tailwind.config.ts`:
 - [x] One-click "Claim ticket" button for technicians/admins on unassigned tickets
 - [x] CSV export from the dashboard — all tickets with status, priority, assignee, timestamps
 
-## Ideas for later phases
-**Phase 3**: rate limiting, error monitoring (Sentry), audit trail, staging
-environment separate from production database, configurable SLA windows (currently hardcoded in `src/lib/sla.ts`)
+**Phase 3 (production readiness)**
+- [x] Audit trail — every status change, priority change, assignment, role change, and bulk action is logged with who/what/when. View it under Manage → Activity Log (admin only)
+- [x] Rate limiting — per-user limits on ticket creation (5 per 10 minutes) and comments (15 per 5 minutes), enforced via database checks, no external service needed
+- [x] Homemade error logging — unexpected errors in API routes are caught and written to your own database instead of crashing silently (see `src/lib/errorLog.ts` for why this is a starting point, not a full replacement for something like Sentry)
+- [x] Configurable SLA windows — admins can change the due-date hours per priority under Manage → Settings, instead of editing code
+- [x] Pagination on the ticket list (20 per page, "Load more") so performance doesn't degrade as ticket volume grows
+- [x] Bulk actions — technicians/admins can select multiple tickets and update their status at once
+
+## Staging environment (no code needed — just setup)
+Once real people depend on this daily, you don't want to test new features
+directly against the production database. Two free tools make this easy:
+- **Neon database branching**: Neon lets you create a "branch" of your
+  production database (a full copy, isolated from prod) for free. Create a
+  branch called `staging`, get its separate connection string.
+- **Vercel preview deployments**: every git branch other than `main` that you
+  push automatically gets its own preview URL on Vercel. Set that preview
+  environment's `DATABASE_URL` to your Neon staging branch's connection
+  string (Vercel → Settings → Environment Variables → scope it to "Preview"
+  instead of "Production").
+This way, pushing to a feature branch tests against a safe copy of your data,
+and only merging to `main` touches the real production database.
+
+## Known limitation
+Search on the ticket list currently searches only the tickets already loaded
+on the page (since the list is paginated), not the full database. For an
+admin-scale search across everything, the `/api/tickets` route would need a
+server-side search parameter — worth adding if ticket volume grows large
+enough that this becomes noticeable.
+
+## Ideas for later
+- Real Sentry integration once traffic justifies it (swap out `src/lib/errorLog.ts`)
+- Server-side search across all tickets, not just the loaded page
+- Category-based auto-routing to a default technician
+- Notification preferences (so people can opt out of certain email types)
