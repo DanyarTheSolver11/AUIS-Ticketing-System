@@ -72,8 +72,8 @@ export default function AdminUsersPage() {
       {loading ? (
         <div className="h-64 animate-pulse rounded-xl border border-navy-100 bg-white" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-navy-100 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-navy-100 bg-white">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-navy-100 bg-navy-50 text-left text-xs font-medium uppercase tracking-wide text-navy-400">
                 <th className="px-5 py-3">Person</th>

@@ -129,7 +129,7 @@ export default function TicketDetailPage() {
   return (
     <PageContainer>
       <div className="overflow-hidden rounded-xl border border-navy-100 bg-white">
-        <div className="flex items-center justify-between border-b border-navy-100 bg-navy-50 px-6 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-100 bg-navy-50 px-4 py-3 sm:px-6">
           <span className="font-mono text-xs text-navy-400">
             #{ticket.id.slice(-6).toUpperCase()}
           </span>
