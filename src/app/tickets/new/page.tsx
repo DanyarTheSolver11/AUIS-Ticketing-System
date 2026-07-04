@@ -109,7 +109,10 @@ export default function NewTicketPage() {
                 allowedContent: "text-navy-400 text-xs mt-1",
               }}
               onClientUploadComplete={(res) => {
-                setFiles((prev) => [...prev, ...res.map((f) => ({ url: f.url, name: f.name, size: f.size }))]);
+                setFiles((prev) => [
+                  ...prev,
+                  ...res.map((f: any) => ({ url: f.ufsUrl ?? f.url, name: f.name, size: f.size })),
+                ]);
               }}
               onUploadError={(err) => setError(`Upload failed: ${err.message}`)}
             />
